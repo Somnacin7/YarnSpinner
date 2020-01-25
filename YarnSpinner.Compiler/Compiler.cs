@@ -14,20 +14,21 @@ using static Yarn.Instruction.Types;
 
 namespace Yarn.Compiler
 {
-    
-    public enum Status {
+
+    public enum Status
+    {
         /// The compilation succeeded with no errors
-        Succeeded, 
+        Succeeded,
 
         /// The compilation succeeded, but some strings do not have string tags. 
         SucceededUntaggedStrings,
 
     }
-    
+
     public class Compiler : YarnSpinnerParserBaseListener
     {
 
-        
+
         // (compilation failures will result in an exception, so they don't get a Status)
 
         private int labelCount = 0;
@@ -47,7 +48,7 @@ namespace Yarn.Compiler
         internal Compiler(string fileName)
         {
             program = new Program();
-            this.fileName = fileName;            
+            this.fileName = fileName;
         }
 
         // the preprocessor that cleans up things to make it easier on ANTLR
@@ -55,7 +56,7 @@ namespace Yarn.Compiler
         // adds in INDENTS and DEDENTS where necessary
         // replaces \t with four spaces
         // takes in a string of yarn and returns a string the compiler can then use
-        
+
         private static string PreprocessIndentationInSource(string nodeText)
         {
             string processed = null;
@@ -65,12 +66,12 @@ namespace Yarn.Compiler
                 // a list to hold outputLines once they have been cleaned up
                 List<string> outputLines = new List<string>();
 
-				// a stack to keep track of how far indented we are
-				// made up of ints and bools
-				// ints track the depth, bool tracks if we emitted an indent token
-				// starts with 0 and false so we can never fall off the end of the stack
-				var indents = new Stack<(int depth, bool emitted)>();
-				indents.Push((0, false));
+                // a stack to keep track of how far indented we are
+                // made up of ints and bools
+                // ints track the depth, bool tracks if we emitted an indent token
+                // starts with 0 and false so we can never fall off the end of the stack
+                var indents = new Stack<(int depth, bool emitted)>();
+                indents.Push((0, false));
 
                 // a bool to determine if we are in a mode where we need to track indents
                 bool shouldTrackNextIndentation = false;
@@ -124,14 +125,14 @@ namespace Yarn.Compiler
                             if (topLevel.emitted)
                             {
                                 // adding dedents
-								if (outputLines.Count == 0)
-								{
+                                if (outputLines.Count == 0)
+                                {
                                     tweakedLine = DEDENT + tweakedLine;
-								}
-								else
-								{
+                                }
+                                else
+                                {
                                     outputLines[outputLines.Count - 1] = outputLines[outputLines.Count - 1] + DEDENT;
-								}
+                                }
                             }
                         }
                     }
@@ -164,7 +165,8 @@ namespace Yarn.Compiler
             return processed;
         }
 
-        public static Status CompileFile(string path, out Program program, out IDictionary<string,StringInfo> stringTable) {
+        public static Status CompileFile(string path, out Program program, out IDictionary<string, StringInfo> stringTable)
+        {
             var source = File.ReadAllText(path);
 
             var fileName = System.IO.Path.GetFileNameWithoutExtension(path);
@@ -174,7 +176,7 @@ namespace Yarn.Compiler
         }
 
         // Given a bunch of raw text, load all nodes that were inside it.
-        public static Status CompileString(string text, string fileName, out Program program, out IDictionary<string,StringInfo> stringTable)
+        public static Status CompileString(string text, string fileName, out Program program, out IDictionary<string, StringInfo> stringTable)
         {
 
             string inputString = PreprocessIndentationInSource(text);
@@ -198,9 +200,12 @@ namespace Yarn.Compiler
             program = compiler.program;
             stringTable = compiler.StringTable;
 
-            if (compiler.containsImplicitStringTags) {
+            if (compiler.containsImplicitStringTags)
+            {
                 return Status.SucceededUntaggedStrings;
-            } else {
+            }
+            else
+            {
                 return Status.Succeeded;
             }
         }
@@ -210,15 +215,16 @@ namespace Yarn.Compiler
         int stringCount = 0;
 
         public string RegisterString(string text, string nodeName, string lineID, int lineNumber)
-		{
+        {
 
-			string key;
+            string key;
 
             bool isImplicit;
 
-			if (lineID == null) {
-				key = $"{fileName}-{nodeName}-{stringCount}";
-                
+            if (lineID == null)
+            {
+                key = $"{fileName}-{nodeName}-{stringCount}";
+
                 stringCount += 1;
 
                 // Note that we had to make up a tag for this string, which
@@ -227,19 +233,20 @@ namespace Yarn.Compiler
 
                 isImplicit = true;
             }
-			else {
-				key = lineID;
+            else
+            {
+                key = lineID;
 
                 isImplicit = false;
             }
 
             var theString = new StringInfo(text, fileName, nodeName, lineNumber, isImplicit);
-            
-			// It's not in the list; append it
-			StringTable.Add(key, theString);
 
-			return key;
-		}
+            // It's not in the list; append it
+            StringTable.Add(key, theString);
+
+            return key;
+        }
 
 
 
@@ -261,17 +268,19 @@ namespace Yarn.Compiler
                 throw new ArgumentNullException("operandA", "operandA cannot be null while operandB is not null");
             }
 
-            if (operandA != null) {
-                instruction.Operands.Add(operandA);            
+            if (operandA != null)
+            {
+                instruction.Operands.Add(operandA);
             }
 
-            if (operandB != null) {
+            if (operandB != null)
+            {
                 instruction.Operands.Add(operandB);
             }
 
-            
+
             node.Instructions.Add(instruction);
-            
+
         }
         // exactly same as above but defaults to using currentNode
         // creates the relevant instruction and adds it to the stack
@@ -319,7 +328,7 @@ namespace Yarn.Compiler
             {
                 string newNode = context.header().header_title().TITLE_TEXT().GetText().Trim();
                 string message = string.Format(CultureInfo.CurrentCulture, "Discovered a new node {0} while {1} is still being parsed", newNode, currentNode.Name);
-				throw new ParseException(message);
+                throw new ParseException(message);
             }
             currentNode = new Node();
             rawTextNode = false;
@@ -375,7 +384,7 @@ namespace Yarn.Compiler
             if (!rawTextNode)
             {
                 // Add this label to the label table
-                currentNode.Labels.Add(RegisterLabel(), currentNode.Instructions.Count);                
+                currentNode.Labels.Add(RegisterLabel(), currentNode.Instructions.Count);
             }
         }
 
@@ -404,12 +413,12 @@ namespace Yarn.Compiler
             {
                 // moving in by 4 from the end to cut off the ---/=== delimiters
                 // and their associated /n's
-				int start = context.Start.StartIndex + 4;
-				int end = context.Stop.StopIndex - 4;
+                int start = context.Start.StartIndex + 4;
+                int end = context.Stop.StopIndex - 4;
                 string body = context.Start.InputStream.GetText(new Interval(start, end));
 
                 currentNode.SourceTextStringID = RegisterString(body, currentNode.Name, "line:" + currentNode.Name, context.Start.Line);
-			}
+            }
         }
 
         // exiting the body of the node, time for last minute work
@@ -506,6 +515,13 @@ namespace Yarn.Compiler
 
                 string stringID = compiler.RegisterString(label, compiler.currentNode.Name, lineID, lineNumber);
                 compiler.Emit(OpCode.AddOption, new Operand(stringID), new Operand(destination));
+
+                // TODO: FIGURE OUT A BETTER WAY TO DECIDE WHEN TO SHOW OPTIONS
+                if (compiler.currentNode.Instructions.Where(i => i.Opcode == OpCode.AddOption).Count() >= 4)
+                {
+                    compiler.Emit(OpCode.ShowOptions);
+                }
+
             }
             else
             {
@@ -549,7 +565,7 @@ namespace Yarn.Compiler
                 else
                 {
                     // throw an error
-                    throw ParseException.Make(context,"Invalid expression inside assignment statement");
+                    throw ParseException.Make(context, "Invalid expression inside assignment statement");
                 }
             }
 
@@ -570,13 +586,13 @@ namespace Yarn.Compiler
                     // "stop" is a special command that immediately stops
                     // execution
                     compiler.Emit(OpCode.Stop);
-                    break;                
+                    break;
                 default:
                     compiler.Emit(OpCode.RunCommand, new Operand(action));
                     break;
             }
 
-			return 0;
+            return 0;
         }
 
         // solo function statements
@@ -590,23 +606,23 @@ namespace Yarn.Compiler
             string functionName = context.GetChild(0).GetText().TrimStart(lTrim).TrimEnd(rTrim);
 
             this.HandleFunction(functionName, context.expression());
-            
+
             return 0;
         }
         // emits the required tokens for the function call
         private void HandleFunction(string functionName, YarnSpinnerParser.ExpressionContext[] parameters)
         {
-			// generate the instructions for all of the parameters
-			foreach (var parameter in parameters)
-			{
-				Visit(parameter);
-			}
+            // generate the instructions for all of the parameters
+            foreach (var parameter in parameters)
+            {
+                Visit(parameter);
+            }
 
-			// push the number of parameters onto the stack
-			compiler.Emit(OpCode.PushFloat, new Operand(parameters.Length));
-			
-			// then call the function itself
-			compiler.Emit(OpCode.CallFunc, new Operand(functionName));            
+            // push the number of parameters onto the stack
+            compiler.Emit(OpCode.PushFloat, new Operand(parameters.Length));
+
+            // then call the function itself
+            compiler.Emit(OpCode.CallFunc, new Operand(functionName));
         }
         // handles emiting the correct instructions for the function
         public override int VisitFunction(YarnSpinnerParser.FunctionContext context)
@@ -642,7 +658,7 @@ namespace Yarn.Compiler
                 generateClause(endOfIfStatementLabel, elseClause.statement(), null);
             }
 
-            compiler.currentNode.Labels.Add(endOfIfStatementLabel, compiler.currentNode.Instructions.Count);                
+            compiler.currentNode.Labels.Add(endOfIfStatementLabel, compiler.currentNode.Instructions.Count);
 
             return 0;
         }
@@ -668,7 +684,7 @@ namespace Yarn.Compiler
 
             if (expression != null)
             {
-                compiler.currentNode.Labels.Add(endOfClauseLabel, compiler.currentNode.Instructions.Count);                
+                compiler.currentNode.Labels.Add(endOfClauseLabel, compiler.currentNode.Instructions.Count);
                 compiler.Emit(OpCode.Pop);
             }
         }
@@ -714,21 +730,21 @@ namespace Yarn.Compiler
 
                 if (shortcut.shortcut_conditional() != null)
                 {
-                    compiler.currentNode.Labels.Add(endOfClauseLabel, compiler.currentNode.Instructions.Count);                
+                    compiler.currentNode.Labels.Add(endOfClauseLabel, compiler.currentNode.Instructions.Count);
                     compiler.Emit(OpCode.Pop);
                 }
                 optionCount++;
             }
 
             compiler.Emit(OpCode.ShowOptions);
-            
+
             compiler.Emit(OpCode.Jump);
 
             optionCount = 0;
             foreach (var shortcut in context.shortcut())
             {
-                compiler.currentNode.Labels.Add(labels[optionCount], compiler.currentNode.Instructions.Count);                
-                
+                compiler.currentNode.Labels.Add(labels[optionCount], compiler.currentNode.Instructions.Count);
+
                 // running through all the children statements of the shortcut
                 foreach (var child in shortcut.statement())
                 {
@@ -740,7 +756,7 @@ namespace Yarn.Compiler
                 optionCount++;
             }
 
-            compiler.currentNode.Labels.Add(endOfGroupLabel, compiler.currentNode.Instructions.Count);                
+            compiler.currentNode.Labels.Add(endOfGroupLabel, compiler.currentNode.Instructions.Count);
             compiler.Emit(OpCode.Pop);
 
             return 0;
@@ -941,9 +957,9 @@ namespace Yarn.Compiler
             compiler.Emit(OpCode.PushNull);
             return 0;
         }
-		#endregion
+        #endregion
 
-		// TODO: figure out a better way to do operators
+        // TODO: figure out a better way to do operators
         Dictionary<int, TokenType> tokens = new Dictionary<int, TokenType>();
         private void loadOperators()
         {
@@ -973,50 +989,50 @@ namespace Yarn.Compiler
             tokens[YarnSpinnerLexer.OPERATOR_MATHS_DIVISION_EQUALS] = TokenType.Divide;
             tokens[YarnSpinnerLexer.OPERATOR_MATHS_MODULUS_EQUALS] = TokenType.Modulo;
         }
-	}
+    }
 
-	public class Graph
-	{
-		public ArrayList<String> nodes = new ArrayList<String>();
-		public MultiMap<String, String> edges = new MultiMap<String, String>();
+    public class Graph
+    {
+        public ArrayList<String> nodes = new ArrayList<String>();
+        public MultiMap<String, String> edges = new MultiMap<String, String>();
         public string graphName = "G";
 
-		public void edge(String source, String target)
-		{
-			edges.Map(source, target);
-		}
-		public String toDot()
-		{
-			StringBuilder buf = new StringBuilder();
-            buf.AppendFormat("digraph {0} ",graphName);
+        public void edge(String source, String target)
+        {
+            edges.Map(source, target);
+        }
+        public String toDot()
+        {
+            StringBuilder buf = new StringBuilder();
+            buf.AppendFormat("digraph {0} ", graphName);
             buf.Append("{\n");
-			buf.Append("  ");
-			foreach (String node in nodes)
-			{ // print all nodes first
-				buf.Append(node);
-				buf.Append("; ");
-			}
-			buf.Append("\n");
-			foreach (String src in edges.Keys)
-			{
+            buf.Append("  ");
+            foreach (String node in nodes)
+            { // print all nodes first
+                buf.Append(node);
+                buf.Append("; ");
+            }
+            buf.Append("\n");
+            foreach (String src in edges.Keys)
+            {
                 IList<string> output;
-				if (edges.TryGetValue(src, out output))
-				{
-					foreach (String trg in output)
-					{
-						buf.Append("  ");
-						buf.Append(src);
-						buf.Append(" -> ");
-						buf.Append(trg);
-						buf.Append(";\n");
-					}
-				}
-			}
-			buf.Append("}\n");
-			return buf.ToString();
-		}
-	}
-    public class GraphListener:YarnSpinnerParserBaseListener
+                if (edges.TryGetValue(src, out output))
+                {
+                    foreach (String trg in output)
+                    {
+                        buf.Append("  ");
+                        buf.Append(src);
+                        buf.Append(" -> ");
+                        buf.Append(trg);
+                        buf.Append(";\n");
+                    }
+                }
+            }
+            buf.Append("}\n");
+            return buf.ToString();
+        }
+    }
+    public class GraphListener : YarnSpinnerParserBaseListener
     {
         String currentNode = null;
         public Graph graph = new Graph();
@@ -1030,7 +1046,7 @@ namespace Yarn.Compiler
             var link = context.OPTION_LINK();
             if (link != null)
             {
-                graph.edge(currentNode,link.GetText());
+                graph.edge(currentNode, link.GetText());
             }
             else
             {

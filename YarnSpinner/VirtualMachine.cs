@@ -1,29 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-
+using System.Linq;
 using static Yarn.Instruction.Types;
 
 namespace Yarn
 {
-    public partial class Operand {
+    public partial class Operand
+    {
         // Define some convenience constructors for the Operand type, so
         // that we don't need to have two separate steps for creating and
         // then preparing the Operand
-        public Operand(bool value) : base() {
+        public Operand(bool value) : base()
+        {
             this.BoolValue = value;
         }
 
-        public Operand(string value) : base() {
+        public Operand(string value) : base()
+        {
             this.StringValue = value;
         }
 
-        public Operand(float value) : base() {
+        public Operand(float value) : base()
+        {
             this.FloatValue = value;
         }
     }
 
-    internal enum TokenType {
+    internal enum TokenType
+    {
 
 
         // Special tokens
@@ -120,7 +125,8 @@ namespace Yarn
     internal class VirtualMachine
     {
 
-        internal class State {
+        internal class State
+        {
 
             /// The name of the node that we're currently in
             public string currentNodeName;
@@ -128,49 +134,74 @@ namespace Yarn
             /// The instruction number in the current node
             public int programCounter = 0;
 
+            public struct OptionWithFlag
+            {
+                public string Key;
+                public string Value;
+                public bool HasBeenShown;
+
+                public OptionWithFlag(string id, string value, bool hasBeenShown)
+                {
+                    Key = id;
+                    Value = value;
+                    HasBeenShown = hasBeenShown;
+                }
+            }
+
             /// List of options, where each option = <string id, destination node>
-            public List<KeyValuePair<string,string>> currentOptions = new List<KeyValuePair<string, string>>();
+            public Dictionary<string, OptionWithFlag> currentOptions =
+                new Dictionary<string, OptionWithFlag>();
 
             /// The value stack
             private Stack<Value> stack = new Stack<Value>();
 
             /// Methods for working with the stack
-            public void PushValue(object o) {
-                if( o is Value ) {
+            public void PushValue(object o)
+            {
+                if (o is Value)
+                {
                     stack.Push(o as Value);
-                } else {
-                    stack.Push (new Value(o));
+                }
+                else
+                {
+                    stack.Push(new Value(o));
                 }
             }
 
             /// Pop a value from the stack
-            public Value PopValue() {
-                return stack.Pop ();
+            public Value PopValue()
+            {
+                return stack.Pop();
             }
 
             /// Peek at a value from the stack
-            public Value PeekValue() {
-                return stack.Peek ();
+            public Value PeekValue()
+            {
+                return stack.Peek();
             }
 
             /// Clear the stack
-            public void ClearStack() {
-                stack.Clear ();
+            public void ClearStack()
+            {
+                stack.Clear();
             }
         }
-        
-        internal VirtualMachine (Dialogue d)
+
+        internal VirtualMachine(Dialogue d)
         {
             dialogue = d;
-            state = new State ();
-        }
-
-        /// Reset the state of the VM
-        internal void ResetState() {
             state = new State();
         }
 
-        
+        /// Reset the state of the VM
+        internal void ResetState()
+        {
+            var pastOptions = state.currentOptions;
+            state = new State();
+            state.currentOptions = pastOptions;
+        }
+
+
         public Dialogue.LineHandler lineHandler;
         public Dialogue.OptionsHandler optionsHandler;
         public Dialogue.CommandHandler commandHandler;
@@ -189,7 +220,8 @@ namespace Yarn
             }
         }
 
-        public enum ExecutionState {
+        public enum ExecutionState
+        {
             /** Stopped */
             Stopped,
             /** Waiting on option selection */
@@ -207,16 +239,19 @@ namespace Yarn
             }
             private set {
                 _executionState = value;
-                if (_executionState == ExecutionState.Stopped) {
-                    ResetState ();
+                if (_executionState == ExecutionState.Stopped)
+                {
+                    ResetState();
                 }
             }
         }
 
         Node currentNode;
 
-        public bool SetNode(string nodeName) {
-            if (Program.Nodes.ContainsKey(nodeName) == false) {
+        public bool SetNode(string nodeName)
+        {
+            if (Program.Nodes.ContainsKey(nodeName) == false)
+            {
 
                 var error = "No node named " + nodeName;
                 dialogue.LogErrorMessage(error);
@@ -224,110 +259,136 @@ namespace Yarn
                 return false;
             }
 
-            dialogue.LogDebugMessage ("Running node " + nodeName);
+            dialogue.LogDebugMessage("Running node " + nodeName);
 
-            currentNode = Program.Nodes [nodeName];
-            ResetState ();
+            currentNode = Program.Nodes[nodeName];
+            ResetState();
             state.currentNodeName = nodeName;
 
             return true;
         }
 
-        public void Stop() {
+        public void Stop()
+        {
             executionState = ExecutionState.Stopped;
         }
 
-        public void SetSelectedOption(int selectedOptionID) {
+        public void SetSelectedOption(string selectedOptionID)
+        {
 
-            if (executionState != ExecutionState.WaitingOnOptionSelection) {
-                dialogue.LogErrorMessage(@"SetSelectedOption was called, but Dialogue wasn't waiting for a selection.
-                This method should only be called after the Dialogue is waiting for the user to select an option.");
-                return;
+            // SOMN: commented out so that we don't have a waiting on options state
+            //if (executionState != ExecutionState.WaitingOnOptionSelection) {
+            //    dialogue.LogErrorMessage(@"SetSelectedOption was called, but Dialogue wasn't waiting for a selection.
+            //    This method should only be called after the Dialogue is waiting for the user to select an option.");
+            //    return;
+            //}
+
+            var destinationNode = state.currentOptions[selectedOptionID].Value;
+            if (executionState == ExecutionState.Running)
+            {
+                // We now know what number option was selected; push the
+                // corresponding node name to the stack
+                state.PushValue(destinationNode);
+
+                // We no longer need the accumulated list of options; clear it
+                // so that it's ready for the next one
+
+                //state.currentOptions.Clear(); COMMENTED OUT SINCE WE'RE HOLDING ON TO OLD OPTIONS NOW
+
+                // We're no longer in the WaitingForOptions state; we are now
+                // instead Suspended
+                executionState = ExecutionState.Suspended;
+            }
+            else
+            {
+                SetNode(destinationNode);
+                Continue();
             }
 
-            // We now know what number option was selected; push the
-            // corresponding node name to the stack
-            var destinationNode = state.currentOptions[selectedOptionID].Value;
-            state.PushValue(destinationNode);
 
-            // We no longer need the accumulated list of options; clear it
-            // so that it's ready for the next one
-            state.currentOptions.Clear();
-
-            // We're no longer in the WaitingForOptions state; we are now
-            // instead Suspended
-            executionState = ExecutionState.Suspended;
         }
-                    
+
 
         /// Resumes execution.inheritdoc
-        internal void Continue() {
+        internal void Continue()
+        {
 
-            if (currentNode == null) {
+            if (currentNode == null)
+            {
                 dialogue.LogErrorMessage("Cannot continue running dialogue. No node has been selected.");
                 return;
             }
 
-            if (executionState == ExecutionState.WaitingOnOptionSelection) {
-                dialogue.LogErrorMessage ("Cannot continue running dialogue. Still waiting on option selection.");
+            if (executionState == ExecutionState.WaitingOnOptionSelection)
+            {
+                dialogue.LogErrorMessage("Cannot continue running dialogue. Still waiting on option selection.");
                 return;
             }
 
-            if (lineHandler == null) {
-                dialogue.LogErrorMessage ($"Cannot continue running dialogue. {nameof(lineHandler)} has not been set.");
+            if (lineHandler == null)
+            {
+                dialogue.LogErrorMessage($"Cannot continue running dialogue. {nameof(lineHandler)} has not been set.");
                 return;
             }
 
-            if (optionsHandler == null) {
-                dialogue.LogErrorMessage ($"Cannot continue running dialogue. {nameof(optionsHandler)} has not been set.");
+            if (optionsHandler == null)
+            {
+                dialogue.LogErrorMessage($"Cannot continue running dialogue. {nameof(optionsHandler)} has not been set.");
                 return;
             }
 
-            if (commandHandler == null) {
-                dialogue.LogErrorMessage ($"Cannot continue running dialogue. {nameof(commandHandler)} has not been set.");
+            if (commandHandler == null)
+            {
+                dialogue.LogErrorMessage($"Cannot continue running dialogue. {nameof(commandHandler)} has not been set.");
                 return;
             }
 
-            if (nodeCompleteHandler == null) {
-                dialogue.LogErrorMessage ($"Cannot continue running dialogue. {nameof(nodeCompleteHandler)} has not been set.");
+            if (nodeCompleteHandler == null)
+            {
+                dialogue.LogErrorMessage($"Cannot continue running dialogue. {nameof(nodeCompleteHandler)} has not been set.");
                 return;
             }
 
-            if (nodeCompleteHandler == null) {
-                dialogue.LogErrorMessage ($"Cannot continue running dialogue. {nameof(nodeCompleteHandler)} has not been set.");
+            if (nodeCompleteHandler == null)
+            {
+                dialogue.LogErrorMessage($"Cannot continue running dialogue. {nameof(nodeCompleteHandler)} has not been set.");
                 return;
             }
 
             executionState = ExecutionState.Running;
 
             // Execute instructions until something forces us to stop
-            while (executionState == ExecutionState.Running) {
-                Instruction currentInstruction = currentNode.Instructions [state.programCounter];
+            while (executionState == ExecutionState.Running)
+            {
+                Instruction currentInstruction = currentNode.Instructions[state.programCounter];
 
-                RunInstruction (currentInstruction);
+                RunInstruction(currentInstruction);
 
                 state.programCounter++;
 
-                if (state.programCounter >= currentNode.Instructions.Count) {
+                if (state.programCounter >= currentNode.Instructions.Count)
+                {
                     nodeCompleteHandler(currentNode.Name);
                     executionState = ExecutionState.Stopped;
                     dialogueCompleteHandler();
-                    dialogue.LogDebugMessage ("Run complete.");
+                    dialogue.LogDebugMessage("Run complete.");
                 }
             }
         }
 
         /// Looks up the instruction number for a named label in the current node.
-        internal int FindInstructionPointForLabel(string labelName) {
+        internal int FindInstructionPointForLabel(string labelName)
+        {
 
-            if (currentNode.Labels.ContainsKey(labelName) == false) {
+            if (currentNode.Labels.ContainsKey(labelName) == false)
+            {
                 // Couldn't find the node..
-                throw new IndexOutOfRangeException (
+                throw new IndexOutOfRangeException(
                     $"Unknown label {labelName} in node {state.currentNodeName}"
                 );
             }
 
-            return currentNode.Labels [labelName];
+            return currentNode.Labels[labelName];
         }
 
         internal void RunInstruction(Instruction i)
@@ -566,17 +627,18 @@ namespace Yarn
                         }
 
                         var pause = nodeCompleteHandler(currentNode.Name);
-                        
+
                         SetNode(nodeName);
 
                         // Decrement program counter here, because it will
                         // be incremented when this function returns, and
                         // would mean skipping the first instruction
-                        state.programCounter -= 1; 
+                        state.programCounter -= 1;
 
-                        if (pause == Dialogue.HandlerExecutionType.PauseExecution) {
+                        if (pause == Dialogue.HandlerExecutionType.PauseExecution)
+                        {
                             executionState = ExecutionState.Suspended;
-                        }                        
+                        }
 
                         break;
                     }
@@ -586,12 +648,17 @@ namespace Yarn
                         /// - AddOption
                         /** Add an option to the current state.
                          */
-                        state.currentOptions.Add(
-                            new KeyValuePair<string, string>(
-                                i.Operands[0].StringValue, // node name
-                                i.Operands[1].StringValue  // display string key
-                            )
-                        );
+                        if (!state.currentOptions.ContainsKey(i.Operands[0].StringValue))
+                        {
+                            state.currentOptions.Add(
+                                i.Operands[0].StringValue,
+                                new State.OptionWithFlag(
+                                    i.Operands[0].StringValue, // node name
+                                    i.Operands[1].StringValue, // display string key
+                                    false
+                                )
+                            );
+                        }
 
                         break;
                     }
@@ -611,15 +678,21 @@ namespace Yarn
                         // Present the list of options to the user and let them pick
                         var optionChoices = new List<OptionSet.Option>();
 
-                        for (int optionIndex = 0; optionIndex < state.currentOptions.Count; optionIndex++)
+                        var keys = state.currentOptions.Keys.ToList();
+                        for (int optionIndex = 0; optionIndex < keys.Count; optionIndex++)
                         {
-                            var option = state.currentOptions[optionIndex];
+                            var option = state.currentOptions[keys[optionIndex]];
                             var line = new Line(option.Key);
-                            optionChoices.Add(new OptionSet.Option(line, optionIndex));
+
+                            if (!option.HasBeenShown)
+                            {
+                                optionChoices.Add(new OptionSet.Option(line, keys[optionIndex]));
+                                state.currentOptions[keys[optionIndex]] = new State.OptionWithFlag(option.Key, option.Value, true);
+                            }
                         }
 
                         // We can't continue until our client tell us which option to pick
-                        executionState = ExecutionState.WaitingOnOptionSelection;
+                        //executionState = ExecutionState.WaitingOnOptionSelection;
 
                         // Pass the options set to the client, as well as a delegate for them to call when the
                         // user has made a selection

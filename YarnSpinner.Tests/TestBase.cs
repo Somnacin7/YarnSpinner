@@ -16,7 +16,7 @@ namespace YarnSpinner.Tests
 
         string nextExpectedLine = null;
         int nextExpectedOptionCount = -1;
-        int nextOptionToSelect = -1;
+        string nextOptionToSelect = null;
         string nextExpectedCommand = null;
 
 
@@ -99,7 +99,7 @@ namespace YarnSpinner.Tests
 
             dialogue.library.RegisterFunction ("prepare_for_options", 2, delegate(Value[] parameters) {
                 nextExpectedOptionCount = (int)parameters[0].AsNumber;
-                nextOptionToSelect = (int)parameters[1].AsNumber;
+                nextOptionToSelect = parameters[1].AsString;
             });
 
             dialogue.library.RegisterFunction ("expect_line", -1, delegate(Value[] parameters) {
@@ -140,14 +140,14 @@ namespace YarnSpinner.Tests
                     Assert.Equal (nextExpectedOptionCount, optionCount);
                 }
 
-                if (nextOptionToSelect != -1) {
+                if (nextOptionToSelect != null) {
                     dialogue.SetSelectedOption(nextOptionToSelect);                    
                 } else {
-                    dialogue.SetSelectedOption(0);                    
+                    dialogue.SetSelectedOption("");                    
                 }
 
                 nextExpectedOptionCount = -1;
-                nextOptionToSelect = -1;
+                nextOptionToSelect = null;
             };
 
             dialogue.commandHandler = delegate (Command command) {

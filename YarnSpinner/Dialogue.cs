@@ -31,53 +31,59 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
 
-namespace Yarn {
+namespace Yarn
+{
 
     /// Represents things that can go wrong while loading or running a dialogue.
     [Serializable]
-    public  class YarnException : Exception {
-        public YarnException(string message) : base(message) {}
+    public class YarnException : Exception
+    {
+        public YarnException(string message) : base(message) { }
 
-        protected YarnException(SerializationInfo serializationInfo, StreamingContext streamingContext) : base(serializationInfo, streamingContext) {}
+        protected YarnException(SerializationInfo serializationInfo, StreamingContext streamingContext) : base(serializationInfo, streamingContext) { }
     }
 
-    public struct Line {
+    public struct Line
+    {
         public Line(string stringID) : this()
         {
-            this.ID = stringID;            
+            this.ID = stringID;
         }
 
         public string ID;
         public string Text;
     }
 
-    public struct OptionSet {
+    public struct OptionSet
+    {
         public OptionSet(Option[] options)
         {
             Options = options;
         }
 
-        public struct Option {
-            public Option(Line line, int id)
+        public struct Option
+        {
+            public Option(Line line, string id)
             {
                 Line = line;
                 ID = id;
             }
 
-            public Line Line {get; private set;}
-            public int ID {get; private set;}
+            public Line Line { get; private set; }
+            public string ID { get; private set; }
         }
-        
-        public Option[] Options {get; private set;}
+
+        public Option[] Options { get; private set; }
     }
 
-    public struct Command {
+    public struct Command
+    {
         public Command(string text)
         {
             Text = text;
         }
 
-        public string Text {get; private set;}
+        public string Text { get; private set; }
     }
 
     // Delegates, which are used by the client.
@@ -87,7 +93,8 @@ namespace Yarn {
     public delegate void Logger(string message);
 
     /// Where we turn to for storing and loading variable data.
-    public interface VariableStorage {
+    public interface VariableStorage
+    {
         void SetValue(string variableName, Value value);
 
         // some convenience setters
@@ -99,7 +106,8 @@ namespace Yarn {
         void Clear();
     }
 
-    public abstract class BaseVariableStorage : VariableStorage {
+    public abstract class BaseVariableStorage : VariableStorage
+    {
         public virtual void SetValue(string variableName, string stringValue)
         {
             Value val = new Yarn.Value(stringValue);
@@ -148,11 +156,12 @@ namespace Yarn {
     }
 
     /// The Dialogue class is the main thing that clients will use.
-    public class Dialogue  {
+    public class Dialogue
+    {
 
         /// We'll ask this object for the state of variables
         internal VariableStorage continuity;
-		
+
         /// Delegates used for logging.
         public Logger LogDebugMessage;
         public Logger LogErrorMessage;
@@ -162,7 +171,8 @@ namespace Yarn {
 
         /// The Program is the compiled Yarn program.
         private Program _program;
-        internal Program Program { get => _program; 
+        internal Program Program {
+            get => _program;
             set {
                 _program = value;
 
@@ -173,7 +183,8 @@ namespace Yarn {
 
         public bool IsActive => vm.executionState != VirtualMachine.ExecutionState.Stopped;
 
-        public enum HandlerExecutionType {
+        public enum HandlerExecutionType
+        {
             PauseExecution,
             ContinueExecution
         }
@@ -186,8 +197,7 @@ namespace Yarn {
 
 
         /// Called when a line is ready to be shown to the user.
-        public LineHandler lineHandler
-        {
+        public LineHandler lineHandler {
             get => vm.lineHandler;
             set => vm.lineHandler = value;
         }
@@ -195,30 +205,26 @@ namespace Yarn {
         /// Called when a set of options are ready to be shown to the user.
         /// Call <see>SetSelectedOption</see> to indicate that the
         /// selection has been made.
-        public OptionsHandler optionsHandler
-        {
+        public OptionsHandler optionsHandler {
             get => vm.optionsHandler;
             set => vm.optionsHandler = value;
         }
 
         /// Called when a command is to be delivered to the game.
-        public CommandHandler commandHandler
-        {
+        public CommandHandler commandHandler {
             get => vm.commandHandler;
             set => vm.commandHandler = value;
         }
 
         /// Called when a node is finished.
-        public NodeCompleteHandler nodeCompleteHandler
-        {
+        public NodeCompleteHandler nodeCompleteHandler {
             get => vm.nodeCompleteHandler;
             set => vm.nodeCompleteHandler = value;
         }
 
         /// Called when all execution is complete, indicating that the
         /// dialogue is over.
-        public DialogueCompleteHandler dialogueCompleteHandler
-        {
+        public DialogueCompleteHandler dialogueCompleteHandler {
             get => vm.dialogueCompleteHandler;
             set => vm.dialogueCompleteHandler = value;
         }
@@ -231,58 +237,70 @@ namespace Yarn {
         /// The collection of nodes that we've seen.
         public Dictionary<String, int> visitedNodeCount = new Dictionary<string, int>();
 
-        public Dialogue(Yarn.VariableStorage continuity) {
+        public Dialogue(Yarn.VariableStorage continuity)
+        {
             this.continuity = continuity ?? throw new ArgumentNullException(nameof(continuity));
-            library = new Library ();
+            library = new Library();
 
             this.vm = new VirtualMachine(this);
 
-            library.ImportLibrary (new StandardLibrary ());
+            library.ImportLibrary(new StandardLibrary());
         }
 
         /// Load a program object.
-        public void SetProgram(Program program) {
+        public void SetProgram(Program program)
+        {
             this.Program = program;
         }
 
         /// Merge a program into what's currently loaded.
-        public void AddProgram(Program program) {
-            if (this.Program == null) {
+        public void AddProgram(Program program)
+        {
+            if (this.Program == null)
+            {
                 SetProgram(program);
                 return;
-            } else {
+            }
+            else
+            {
                 this.Program = Program.Combine(this.Program, program);
             }
-            
+
         }
 
         /// Load a file from disk.
-        public void LoadProgram(string fileName) {
+        public void LoadProgram(string fileName)
+        {
 
-            var bytes = File.ReadAllBytes (fileName);
+            var bytes = File.ReadAllBytes(fileName);
 
             this.Program = Program.Parser.ParseFrom(bytes);
-            
+
         }
 
         // Prepares to run the named node
-        public void SetNode(string startNode = DEFAULT_START) {
-            vm.SetNode (startNode);
+        public void SetNode(string startNode = DEFAULT_START)
+        {
+            vm.SetNode(startNode);
         }
 
-        public void SetSelectedOption(int selectedOptionID) {
+        public void SetSelectedOption(string selectedOptionID)
+        {
             vm.SetSelectedOption(selectedOptionID);
         }
-        
-        public void Continue() {
-            if (vm.executionState == VirtualMachine.ExecutionState.Running) {
+
+        public void Continue()
+        {
+            if (vm.executionState == VirtualMachine.ExecutionState.Running)
+            {
                 // Cannot 'continue' an already running VM.
                 return;
             }
             vm.Continue();
         }
 
-        public void Stop() {
+        public void Stop()
+        {
             if (vm != null)
                 vm.Stop();
         }
@@ -293,7 +311,8 @@ namespace Yarn {
             }
             set {
                 visitedNodeCount = new Dictionary<string, int>();
-                foreach (var entry in value) {
+                foreach (var entry in value)
+                {
                     visitedNodeCount[entry] = 1;
                 }
             }
@@ -307,9 +326,12 @@ namespace Yarn {
 
         public string currentNode {
             get {
-                if (vm == null) {
+                if (vm == null)
+                {
                     return null;
-                } else {
+                }
+                else
+                {
                     return vm.currentNodeName;
                 }
 
@@ -317,48 +339,63 @@ namespace Yarn {
         }
 
         /// Returns the source code for the node 'nodeName', if that node was tagged with rawText.
-        public string GetStringIDForNode(string nodeName) {
-            if (Program.Nodes.Count == 0) {
-                LogErrorMessage ("No nodes are loaded!");
+        public string GetStringIDForNode(string nodeName)
+        {
+            if (Program.Nodes.Count == 0)
+            {
+                LogErrorMessage("No nodes are loaded!");
                 return null;
-            } else if (Program.Nodes.ContainsKey(nodeName)) {
+            }
+            else if (Program.Nodes.ContainsKey(nodeName))
+            {
                 return "line:" + nodeName;
-            } else {
-                LogErrorMessage ("No node named " + nodeName);
+            }
+            else
+            {
+                LogErrorMessage("No node named " + nodeName);
                 return null;
             }
         }
 
-		public Dictionary<string, IEnumerable<string>> GetTagsForAllNodes() {
-			var d = new Dictionary<string,IEnumerable<string>>();
+        public Dictionary<string, IEnumerable<string>> GetTagsForAllNodes()
+        {
+            var d = new Dictionary<string, IEnumerable<string>>();
 
-			foreach (var node in Program.Nodes) {
-				var tags = Program.GetTagsForNode(node.Key);
+            foreach (var node in Program.Nodes)
+            {
+                var tags = Program.GetTagsForNode(node.Key);
 
-				if (tags == null)
-					continue;
+                if (tags == null)
+                    continue;
 
-				d [node.Key] = tags;
-			}
+                d[node.Key] = tags;
+            }
 
-			return d;
-		}
+            return d;
+        }
 
-		/// Returns the tags for the node 'nodeName'.
-		public IEnumerable<string> GetTagsForNode(string nodeName) {
-			if (Program.Nodes.Count == 0) {
-				LogErrorMessage ("No nodes are loaded!");
-				return null;
-			} else if (Program.Nodes.ContainsKey(nodeName)) {
-				return Program.GetTagsForNode (nodeName);
-			} else {
-				LogErrorMessage ("No node named " + nodeName);
-				return null;
-			}
-		}
+        /// Returns the tags for the node 'nodeName'.
+        public IEnumerable<string> GetTagsForNode(string nodeName)
+        {
+            if (Program.Nodes.Count == 0)
+            {
+                LogErrorMessage("No nodes are loaded!");
+                return null;
+            }
+            else if (Program.Nodes.ContainsKey(nodeName))
+            {
+                return Program.GetTagsForNode(nodeName);
+            }
+            else
+            {
+                LogErrorMessage("No node named " + nodeName);
+                return null;
+            }
+        }
 
         /// Unloads ALL nodes.
-        public void UnloadAll(bool clearVisitedNodes = true) {
+        public void UnloadAll(bool clearVisitedNodes = true)
+        {
             if (clearVisitedNodes)
                 visitedNodeCount.Clear();
 
@@ -366,66 +403,73 @@ namespace Yarn {
 
         }
 
-        public String GetByteCode() {
-            return Program.DumpCode (library);
+        public String GetByteCode()
+        {
+            return Program.DumpCode(library);
         }
 
-        public bool NodeExists(string nodeName) {
-            if (Program == null) {
-                LogErrorMessage ("Tried to call NodeExists, but no nodes " +
+        public bool NodeExists(string nodeName)
+        {
+            if (Program == null)
+            {
+                LogErrorMessage("Tried to call NodeExists, but no nodes " +
                                  "have been compiled!");
                 return false;
             }
-            if (Program.Nodes == null || Program.Nodes.Count == 0) {
-                LogDebugMessage ("Called NodeExists, but there are zero nodes. " +
+            if (Program.Nodes == null || Program.Nodes.Count == 0)
+            {
+                LogDebugMessage("Called NodeExists, but there are zero nodes. " +
                                  "This may be an error.");
                 return false;
             }
             return Program.Nodes.ContainsKey(nodeName);
         }
 
-        public void Analyse(Analysis.Context context) {
+        public void Analyse(Analysis.Context context)
+        {
 
-            context.AddProgramToAnalysis (this.Program);
+            context.AddProgramToAnalysis(this.Program);
 
         }
 
         /// The standard, built-in library of functions and operators.
-        private class StandardLibrary : Library {
+        private class StandardLibrary : Library
+        {
 
-            public StandardLibrary() {
+            public StandardLibrary()
+            {
 
                 #region Operators
 
-                this.RegisterFunction(TokenType.Add.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Add.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] + parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.Minus.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Minus.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] - parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.UnaryMinus.ToString(), 1, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.UnaryMinus.ToString(), 1, delegate (Value[] parameters) {
                     return -parameters[0];
                 });
 
-                this.RegisterFunction(TokenType.Divide.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Divide.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] / parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.Multiply.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Multiply.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] * parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.Modulo.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Modulo.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] % parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.EqualTo.ToString(), 2, delegate(Value[] parameters) {
-                    return parameters[0].Equals( parameters[1] );
+                this.RegisterFunction(TokenType.EqualTo.ToString(), 2, delegate (Value[] parameters) {
+                    return parameters[0].Equals(parameters[1]);
                 });
 
-                this.RegisterFunction(TokenType.NotEqualTo.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.NotEqualTo.ToString(), 2, delegate (Value[] parameters) {
 
                     // Return the logical negative of the == operator's result
                     var equalTo = this.GetFunction(TokenType.EqualTo.ToString());
@@ -433,41 +477,41 @@ namespace Yarn {
                     return !equalTo.Invoke(parameters).AsBool;
                 });
 
-                this.RegisterFunction(TokenType.GreaterThan.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.GreaterThan.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] > parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.GreaterThanOrEqualTo.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.GreaterThanOrEqualTo.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] >= parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.LessThan.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.LessThan.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] < parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.LessThanOrEqualTo.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.LessThanOrEqualTo.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0] <= parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.And.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.And.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0].AsBool && parameters[1].AsBool;
                 });
 
-                this.RegisterFunction(TokenType.Or.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Or.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0].AsBool || parameters[1].AsBool;
                 });
 
-                this.RegisterFunction(TokenType.Xor.ToString(), 2, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Xor.ToString(), 2, delegate (Value[] parameters) {
                     return parameters[0].AsBool ^ parameters[1].AsBool;
                 });
 
-                this.RegisterFunction(TokenType.Not.ToString(), 1, delegate(Value[] parameters) {
+                this.RegisterFunction(TokenType.Not.ToString(), 1, delegate (Value[] parameters) {
                     return !parameters[0].AsBool;
                 });
 
                 #endregion Operators
-			}
-		}
+            }
+        }
 
     }
 }
